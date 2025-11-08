@@ -1,4 +1,4 @@
-// server.js (TÜM YENİ VERİLERİ ALAN FİNAL KODU)
+// server.js (JSON GÖNDEREN FİNAL KODU)
 
 const express = require('express');
 const http = require('http');
@@ -18,14 +18,13 @@ const io = socketIo(server, {
 });
 const port = process.env.PORT || 3000; 
 
-// Logları saklamak için hafızamız (Render uyursa sıfırlanır)
+// Logları saklamak için hafızamız (JSON objeleri olarak)
 let logGecmisi = [];
 
 const BILET_OMRU_SANIYE = 10;
 let aktifBilet = null;
 let biletYenilemeZamanlayicisi;
 
-// QR Kod üretir ve SADECE KULLANICI PANELLERİNE gönderir
 const yeniBiletUretVeGonder = () => {
     clearTimeout(biletYenilemeZamanlayicisi);
     aktifBilet = uuidv4();
@@ -42,41 +41,37 @@ app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin_panel.html'));
 });
 
-// --- API (Tüm yeni verileri alacak şekilde güncellendi) ---
+// --- API (JSON OLUŞTURAN HALİ) ---
 app.post('/api/checkin', (req, res) => {
-    const { bilet_kodu, kullanici_verisi } = req.body; // Artık 'kullanici_verisi' objesi çok daha büyük
+    const { bilet_kodu, kullanici_verisi } = req.body; // kullanici_verisi objesi
 
     if (aktifBilet && aktifBilet === bilet_kodu) {
         aktifBilet = null; 
         
-        // Yeni gelen tüm verileri log mesajına ekliyoruz
-        const logMesaji = `
------------------------------------------
-GİRİŞ TARİHİ: ${new Date().toLocaleString('tr-TR')}
------------------------------------------
-MÜŞTERİ BİLGİLERİ:
-  İsim Soyisim: ${kullanici_verisi.isim} ${kullanici_verisi.soyisim}
-  Form TC:      ${kullanici_verisi.form_tc}
-  NFC TC:       ${kullanici_verisi.nfc_tc_no || "Okunmadı"}
-  Telefon:      ${kullanici_verisi.telefon}
-  Mail:         ${kullanici_verisi.mail}
-  
-GÜVENLİK BİLGİLERİ:
-  Canlılık Testi: ${kullanici_verisi.canlilik_testi_basarili ? "Başarılı" : "Başarısız"}
-  IP Adresi:      ${kullanici_verisi.ip_adresi || "Bilinmiyor"}
-  WiFi Adı:       ${kullanici_verisi.wifi_ssid || "Bilinmiyor"}
-  Cihaz Modeli:   ${kullanici_verisi.cihaz_modeli || "Bilinmiyor"}
-  Cihaz ID:       ${kullanici_verisi.cihaz_id || "Bilinmiyor"}
-`;
+        // YENİ: Gelen veriyi metin yerine JSON objesi olarak hazırla
+        const logData = {
+            tarih: new Date().toLocaleString('tr-TR'),
+            isim: `${kullanici_verisi.isim} ${kullanici_verisi.soyisim}`,
+            form_tc: kullanici_verisi.form_tc,
+            nfc_tc: kullanici_verisi.nfc_tc_no || "Okunmadı",
+            telefon: kullanici_verisi.telefon,
+            mail: kullanici_verisi.mail,
+            canlilik_testi: kullanici_verisi.canlilik_testi_basarili ? "Başarılı" : "Başarısız",
+            ip_adresi: kullanici_verisi.ip_adresi || "Bilinmiyor",
+            wifi_ssid: kullanici_verisi.wifi_ssid || "Bilinmiyor",
+            cihaz_modeli: kullanici_verisi.cihaz_modeli || "Bilinmiyor",
+            cihaz_id: kullanici_verisi.cihaz_id || "Bilinmiyor"
+        };
 
         // Logu hafızaya kaydet (en yeni en üste)
-        logGecmisi.unshift(logMesaji);
+        logGecmisi.unshift(logData);
 
-        // Logu o an bağlı olan tüm adminlere anlık gönder
-        io.emit('yeni_giris_bilgisi', logMesaji);
+        // Logu (JSON objesi olarak) o an bağlı olan tüm adminlere anlık gönder
+        io.emit('yeni_giris_bilgisi', logData);
         console.log("BAŞARILI GİRİŞ:", kullanici_verisi.isim);
 
         yeniBiletUretVeGonder(); // Yeni QR kod üret
+
         res.status(200).send({ message: 'Giriş Başarılı' });
     } else {
         res.status(400).send({ message: 'Geçersiz veya Süresi Dolmuş QR Kod' });
@@ -88,7 +83,7 @@ io.on('connection', (socket) => {
     console.log('Bir panel bağlandı.');
     yeniBiletUretVeGonder(); // Yeni bağlanan panele QR gönder
 
-    // Yeni bağlanan admin paneline tüm geçmişi gönder
+    // Yeni bağlanan admin paneline tüm geçmişi (JSON dizisi olarak) gönder
     socket.emit('log_gecmisi', logGecmisi);
 });
 
