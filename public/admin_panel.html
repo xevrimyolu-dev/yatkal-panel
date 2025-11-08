@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8"> <title>YatKal - Admin Paneli</title>
+    <style> body { padding: 20px; background-color: #f4f4f4; } .log-container { padding: 20px; background: #2c3e50; color: #ecf0f1; border-radius: 8px; height: 90vh; overflow-y: auto; } h2 { margin-top: 0; } .log-entry { background: #34495e; padding: 10px; border-radius: 4px; margin-bottom: 10px; white-space: pre-wrap; font-family: monospace; } </style>
+</head>
+<body>
+    <div class="log-container">
+        <h2>Giriş Logları</h2>
+        <div id="loglar"> <p style="color: #95a5a6;">Sunucuya bağlanılıyor...</p> </div>
+    </div>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+        const socket = io("/"); const logAlani = document.getElementById("loglar");
+        socket.on("connect", () => { if (logAlani.querySelector("p")) { logAlani.innerHTML = ""; } });
+        socket.on("yeni_giris_bilgisi", (logMesaji) => {
+            const yeniLog = document.createElement("div"); yeniLog.className = "log-entry"; yeniLog.textContent = logMesaji; logAlani.insertBefore(yeniLog, logAlani.firstChild);
+        });
+    </script>
+</body>
+</html>
