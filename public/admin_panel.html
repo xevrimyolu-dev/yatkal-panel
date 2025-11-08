@@ -1,20 +1,64 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8"> <title>YatKal - Admin Paneli</title>
-    <style> body { padding: 20px; background-color: #f4f4f4; } .log-container { padding: 20px; background: #2c3e50; color: #ecf0f1; border-radius: 8px; height: 90vh; overflow-y: auto; } h2 { margin-top: 0; } .log-entry { background: #34495e; padding: 10px; border-radius: 4px; margin-bottom: 10px; white-space: pre-wrap; font-family: monospace; } </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YatKal - Admin Paneli</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4; }
+        .log-container { padding: 20px; background: #2c3e50; color: #ecf0f1; border-radius: 8px; height: 90vh; overflow-y: auto; }
+        h2 { margin-top: 0; }
+        .log-entry { background: #34495e; padding: 10px; border-radius: 4px; margin-bottom: 10px; white-space: pre-wrap; font-family: monospace; }
+    </style>
 </head>
 <body>
     <div class="log-container">
         <h2>Giriş Logları</h2>
-        <div id="loglar"> <p style="color: #95a5a6;">Sunucuya bağlanılıyor...</p> </div>
+        <div id="loglar">
+            <p style="color: #95a5a6;">Sunucuya bağlanılıyor...</p>
+        </div>
     </div>
+
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
-        const socket = io("/"); const logAlani = document.getElementById("loglar");
-        socket.on("connect", () => { if (logAlani.querySelector("p")) { logAlani.innerHTML = ""; } });
+        const socket = io("/"); // Sunucuya bağlan
+        const logAlani = document.getElementById("loglar");
+
+        // --- GÜNCELLENDİ: Logları ekrana basan yardımcı fonksiyon ---
+        function addLogToScreen(logMesaji, enUsteEkle = true) {
+            const yeniLog = document.createElement("div");
+            yeniLog.className = "log-entry";
+            yeniLog.textContent = logMesaji;
+
+            if (enUsteEkle) {
+                logAlani.insertBefore(yeniLog, logAlani.firstChild); // Yeni logu en üste koy
+            } else {
+                logAlani.appendChild(yeniLog); // Geçmiş logu en alta koy
+            }
+        }
+        // -----------------------------------------------------------
+
+        // Bağlantı kurulduğunda "Bağlanılıyor..." yazısını temizle
+        socket.on("connect", () => {
+            if (logAlani.querySelector("p")) {
+                logAlani.innerHTML = "";
+            }
+        });
+
+        // 1. ANLIK DİNLEYİCİ: Sunucudan 'yeni' bir log gelirse...
         socket.on("yeni_giris_bilgisi", (logMesaji) => {
-            const yeniLog = document.createElement("div"); yeniLog.className = "log-entry"; yeniLog.textContent = logMesaji; logAlani.insertBefore(yeniLog, logAlani.firstChild);
+            addLogToScreen(logMesaji, true); // Logu en üste ekle
+        });
+
+        // 2. YENİ EKLENDİ: GEÇMİŞ DİNLEYİCİ: Sayfa yüklendiğinde 'tüm geçmiş' gelirse...
+        socket.on("log_gecmisi", (tumLoglar) => {
+            logAlani.innerHTML = ""; // Önce ekranı temizle
+            
+            // Sunucudaki dizi [Log3, Log2, Log1] (yeni en üstte) olduğu için
+            // biz de ekrana [Log3, Log2, Log1] sırasında basmalıyız.
+            tumLoglar.forEach(logMesaji => {
+                addLogToScreen(logMesaji, false); // Logları sırayla sona ekle
+            });
         });
     </script>
 </body>
