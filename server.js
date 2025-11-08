@@ -1,4 +1,4 @@
-// server.js (JSON GÖNDEREN FİNAL KODU)
+// server.js (Admin Paneli SİTEDE OLMAYAN Nihai Sürüm)
 
 const express = require('express');
 const http = require('http');
@@ -18,8 +18,7 @@ const io = socketIo(server, {
 });
 const port = process.env.PORT || 3000; 
 
-// Logları saklamak için hafızamız (JSON objeleri olarak)
-let logGecmisi = [];
+let logGecmisi = []; // Log hafızası (bu kalıyor, admin app burayı okuyacak)
 
 const BILET_OMRU_SANIYE = 10;
 let aktifBilet = null;
@@ -34,21 +33,21 @@ const yeniBiletUretVeGonder = () => {
 };
 
 // --- Rotalar ---
+
+// Sadece KULLANICI Paneli (QR KOD) kaldı
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'user_panel.html'));
 });
-app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin_panel.html'));
-});
 
-// --- API (JSON OLUŞTURAN HALİ) ---
+// '/admin' rotası ARTIK YOK. Bu adrese gidenler 404 hatası alacak.
+
+// API (Değişiklik yok, Android uygulaması burayı kullanmaya devam edecek)
 app.post('/api/checkin', (req, res) => {
-    const { bilet_kodu, kullanici_verisi } = req.body; // kullanici_verisi objesi
+    const { bilet_kodu, kullanici_verisi } = req.body;
 
     if (aktifBilet && aktifBilet === bilet_kodu) {
         aktifBilet = null; 
         
-        // YENİ: Gelen veriyi metin yerine JSON objesi olarak hazırla
         const logData = {
             tarih: new Date().toLocaleString('tr-TR'),
             isim: `${kullanici_verisi.isim} ${kullanici_verisi.soyisim}`,
@@ -63,27 +62,25 @@ app.post('/api/checkin', (req, res) => {
             cihaz_id: kullanici_verisi.cihaz_id || "Bilinmiyor"
         };
 
-        // Logu hafızaya kaydet (en yeni en üste)
         logGecmisi.unshift(logData);
-
-        // Logu (JSON objesi olarak) o an bağlı olan tüm adminlere anlık gönder
+        
+        // Bu logu YENİ ADMİN UYGULAMASI dinleyecek
         io.emit('yeni_giris_bilgisi', logData);
         console.log("BAŞARILI GİRİŞ:", kullanici_verisi.isim);
 
-        yeniBiletUretVeGonder(); // Yeni QR kod üret
-
+        yeniBiletUretVeGonder();
         res.status(200).send({ message: 'Giriş Başarılı' });
     } else {
         res.status(400).send({ message: 'Geçersiz veya Süresi Dolmuş QR Kod' });
     }
 });
 
-// --- WebSocket Bağlantı Yönetimi ---
+// WebSocket Bağlantı Yönetimi (Değişiklik yok, Admin APP burayı kullanacak)
 io.on('connection', (socket) => {
-    console.log('Bir panel bağlandı.');
-    yeniBiletUretVeGonder(); // Yeni bağlanan panele QR gönder
+    console.log('Bir panel (QR veya Admin App) bağlandı.');
+    yeniBiletUretVeGonder(); // QR paneline yeni kod gönder
 
-    // Yeni bağlanan admin paneline tüm geçmişi (JSON dizisi olarak) gönder
+    // Yeni bağlanan Admin App'e tüm geçmişi gönder
     socket.emit('log_gecmisi', logGecmisi);
 });
 
